@@ -1,13 +1,16 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 	"transaction-outbox-practice/config"
-	"transaction-outbox-practice/models"
+	"transaction-outbox-practice/router"
 )
 
 func main() {
@@ -19,22 +22,32 @@ func main() {
 
 	go container.OutboxProcessor.Start()
 
-	order := &models.Order{
-		ProductName: "test product name",
-		Quantity:    3,
-		Price:       1000,
+	handler := router.SetupRoutes(container)
+
+	server := &http.Server{
+		Addr:    ":8080",
+		Handler: handler,
 	}
 
-	fmt.Println("Creating order...")
-	if err := container.OrderService.CreateOrder(order); err != nil {
-		log.Fatal("Failed to create order:", err)
-	}
-
-	fmt.Printf("Order created successfully! ID: %d\n", order.ID)
+	go func() {
+		fmt.Println("Server is running on http://localhost:8080")
+		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Fatal("Failed to start server:", err)
+		}
+	}()
 
 	sigCh := make(chan os.Signal, 1)
 	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
 	<-sigCh
 
 	fmt.Println("\nShutting down...")
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	if err := server.Shutdown(ctx); err != nil {
+		log.Fatal("Server forced to shutdown:", err)
+	}
+
+	fmt.Println("Server exited")
 }

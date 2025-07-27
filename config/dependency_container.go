@@ -3,6 +3,7 @@ package config
 import (
 	"gorm.io/gorm"
 	"transaction-outbox-practice/application"
+	"transaction-outbox-practice/controller"
 	"transaction-outbox-practice/repository"
 )
 
@@ -13,6 +14,7 @@ type Container struct {
 	OutboxEventRepository application.OutboxEventRepository
 	OrderService          *application.OrderService
 	OutboxProcessor       *application.OutboxProcessor
+	OrderController       *controller.OrderController
 }
 
 func NewContainer() (*Container, error) {
@@ -28,6 +30,7 @@ func NewContainer() (*Container, error) {
 
 	orderService := application.NewOrderService(db, orderRepo, outboxEventRepo)
 	outboxProcessor := application.NewOutboxProcessor(outboxEventRepo, cfg.Outbox.PollingInterval, cfg.Outbox.BatchSize)
+	orderController := controller.NewOrderController(orderService)
 
 	return &Container{
 		Config:                cfg,
@@ -36,6 +39,7 @@ func NewContainer() (*Container, error) {
 		OutboxEventRepository: outboxEventRepo,
 		OrderService:          orderService,
 		OutboxProcessor:       outboxProcessor,
+		OrderController:       orderController,
 	}, nil
 }
 
