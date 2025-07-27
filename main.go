@@ -20,9 +20,9 @@ func main() {
 	go container.OutboxProcessor.Start()
 
 	order := &models.Order{
-		ProductName: "ultrathink",
-		Quantity:    2,
-		Price:       999.99,
+		ProductName: "test product name",
+		Quantity:    3,
+		Price:       1000,
 	}
 
 	fmt.Println("Creating order...")
