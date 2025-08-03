@@ -8,6 +8,7 @@ import (
 type Config struct {
 	Database DatabaseConfig
 	Outbox   OutboxConfig
+	Kafka    KafkaConfig
 }
 
 type DatabaseConfig struct {
@@ -23,6 +24,12 @@ type OutboxConfig struct {
 	BatchSize       int
 }
 
+type KafkaConfig struct {
+	Brokers       []string
+	Topic         string
+	ProducerConfig map[string]string
+}
+
 func LoadConfig() *Config {
 	return &Config{
 		Database: DatabaseConfig{
@@ -35,6 +42,18 @@ func LoadConfig() *Config {
 		Outbox: OutboxConfig{
 			PollingInterval: 5 * time.Second,
 			BatchSize:       10,
+		},
+		Kafka: KafkaConfig{
+			Brokers: []string{getEnv("KAFKA_BROKERS", "localhost:9092")},
+			Topic:   getEnv("KAFKA_TOPIC", "order-events"),
+			ProducerConfig: map[string]string{
+				"acks":                   "all",
+				"retries":                "3",
+				"compression.type":       "snappy",
+				"linger.ms":              "10",
+				"batch.size":             "16384",
+				"enable.idempotence":     "true",
+			},
 		},
 	}
 }

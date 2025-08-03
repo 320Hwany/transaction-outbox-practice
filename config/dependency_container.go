@@ -1,6 +1,7 @@
 package config
 
 import (
+	"github.com/confluentinc/confluent-kafka-go/v2/kafka"
 	"gorm.io/gorm"
 	"transaction-outbox-practice/application"
 	"transaction-outbox-practice/controller"
@@ -10,6 +11,7 @@ import (
 type Container struct {
 	Config                *Config
 	DB                    *gorm.DB
+	KafkaProducer         *kafka.Producer
 	OrderRepository       application.OrderRepository
 	OutboxEventRepository application.OutboxEventRepository
 	OrderService          *application.OrderService
@@ -25,16 +27,28 @@ func NewContainer() (*Container, error) {
 		return nil, err
 	}
 
+	kafkaProducer, err := InitKafkaProducer(&cfg.Kafka)
+	if err != nil {
+		return nil, err
+	}
+
 	orderRepo := repository.NewOrderRepository(db)
 	outboxEventRepo := repository.NewOutboxEventRepository(db)
 
 	orderService := application.NewOrderService(db, orderRepo, outboxEventRepo)
-	outboxProcessor := application.NewOutboxProcessor(outboxEventRepo, cfg.Outbox.PollingInterval, cfg.Outbox.BatchSize)
+	outboxProcessor := application.NewOutboxProcessor(
+		outboxEventRepo, 
+		kafkaProducer,
+		cfg.Kafka.Topic,
+		cfg.Outbox.PollingInterval, 
+		cfg.Outbox.BatchSize,
+	)
 	orderController := controller.NewOrderController(orderService)
 
 	return &Container{
 		Config:                cfg,
 		DB:                    db,
+		KafkaProducer:         kafkaProducer,
 		OrderRepository:       orderRepo,
 		OutboxEventRepository: outboxEventRepo,
 		OrderService:          orderService,
